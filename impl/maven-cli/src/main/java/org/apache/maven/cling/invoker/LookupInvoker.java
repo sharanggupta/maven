@@ -37,6 +37,7 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Consumer;
 import java.util.function.UnaryOperator;
+import java.util.logging.Handler;
 import java.util.logging.Level;
 import java.util.logging.LogManager;
 
@@ -126,6 +127,8 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
         Properties oldProps = new Properties();
         oldProps.putAll(System.getProperties());
         ClassLoader oldCL = Thread.currentThread().getContextClassLoader();
+        // activateLogging() replaces them with SLF4JBridgeHandler, whose classes live in Maven's realm
+        Handler[] oldRootLoggerHandlers = java.util.logging.Logger.getLogger("").getHandlers();
         try (C context = createContext(invokerRequest)) {
             if (contextConsumer != null) {
                 contextConsumer.accept(context);
@@ -149,6 +152,22 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
         } finally {
             Thread.currentThread().setContextClassLoader(oldCL);
             System.setProperties(oldProps);
+            restoreRootLoggerHandlers(oldRootLoggerHandlers);
+        }
+    }
+
+    /**
+     * Puts back the handlers the {@code java.util.logging} root logger had before the invocation. When Maven runs inside
+     * another JVM, the root logger belongs to that JVM, and a {@code SLF4JBridgeHandler} left on it would route the
+     * host's logging to Maven and fail once Maven's class realm is closed.
+     */
+    private static void restoreRootLoggerHandlers(Handler[] handlers) {
+        java.util.logging.Logger root = java.util.logging.Logger.getLogger("");
+        for (Handler handler : root.getHandlers()) {
+            root.removeHandler(handler);
+        }
+        for (Handler handler : handlers) {
+            root.addHandler(handler);
         }
     }
 
@@ -978,6 +997,9 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
     }
 
     protected int calculateDegreeOfConcurrency(String threadConfiguration) {
+        if ("max".equalsIgnoreCase(threadConfiguration)) {
+            return Math.max(1, Runtime.getRuntime().availableProcessors() - 1);
+        }
         try {
             if (threadConfiguration.endsWith("C")) {
                 String str = threadConfiguration.substring(0, threadConfiguration.length() - 1);
@@ -1001,7 +1023,7 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
             }
         } catch (NumberFormatException e) {
             throw new IllegalArgumentException("Invalid threads value: '" + threadConfiguration
-                    + "'. Supported are int and float values ending with C.");
+                    + "'. Supported are 'max', int and float values ending with C.");
         }
     }
 
