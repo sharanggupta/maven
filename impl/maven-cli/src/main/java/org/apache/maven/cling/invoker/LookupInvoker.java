@@ -127,7 +127,7 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
         Properties oldProps = new Properties();
         oldProps.putAll(System.getProperties());
         ClassLoader oldCL = Thread.currentThread().getContextClassLoader();
-        // activateLogging() replaces them with SLF4JBridgeHandler, whose classes live in Maven's realm
+        // activateLogging() replaces them with MavenJulHandler, whose classes live in Maven's realm
         Handler[] oldRootLoggerHandlers = java.util.logging.Logger.getLogger("").getHandlers();
         try (C context = createContext(invokerRequest)) {
             if (contextConsumer != null) {
@@ -158,7 +158,7 @@ public abstract class LookupInvoker<C extends LookupContext> implements Invoker 
 
     /**
      * Puts back the handlers the {@code java.util.logging} root logger had before the invocation. When Maven runs inside
-     * another JVM, the root logger belongs to that JVM, and a {@code SLF4JBridgeHandler} left on it would route the
+     * another JVM, the root logger belongs to that JVM, and a {@code MavenJulHandler} left on it would route the
      * host's logging to Maven and fail once Maven's class realm is closed.
      */
     private static void restoreRootLoggerHandlers(Handler[] handlers) {
