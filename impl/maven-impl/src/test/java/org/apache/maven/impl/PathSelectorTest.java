@@ -96,6 +96,38 @@ public class PathSelectorTest {
     }
 
     /**
+     * Tests that an exclude given as a directory with a trailing slash is not omitted as unnecessary.
+     *
+     * @param directory temporary directory where to create a tree
+     * @throws IOException if an error occurred while creating a temporary file or directory
+     */
+    @Test
+    public void testExcludeDirectoryWithTrailingSlash(final @TempDir Path directory) throws IOException {
+        Path docs = Files.createDirectory(directory.resolve("docs"));
+        Files.createFile(directory.resolve("README.md"));
+        Files.createFile(docs.resolve("guide.md"));
+        PathMatcher matcher = PathSelector.of(directory, List.of("**/*.md"), List.of("docs/"), false);
+        assertTrue(matcher.matches(directory.resolve("README.md")));
+        assertFalse(matcher.matches(docs.resolve("guide.md")));
+    }
+
+    /**
+     * Tests that an exclude with an explicit syntax is not omitted when the includes start with a directory.
+     *
+     * @param directory temporary directory where to create a tree
+     * @throws IOException if an error occurred while creating a temporary file or directory
+     */
+    @Test
+    public void testExcludeWithExplicitSyntax(final @TempDir Path directory) throws IOException {
+        Path src = Files.createDirectory(directory.resolve("src"));
+        Files.createFile(src.resolve("Main.java"));
+        Files.createFile(src.resolve("notes.txt"));
+        PathMatcher matcher = PathSelector.of(directory, List.of("src/**"), List.of("glob:**/*.txt"), false);
+        assertTrue(matcher.matches(src.resolve("Main.java")));
+        assertFalse(matcher.matches(src.resolve("notes.txt")));
+    }
+
+    /**
      * Test to verify the current behavior of ** patterns before implementing brace expansion improvement.
      * This test documents the expected behavior that must be preserved after the optimization.
      */

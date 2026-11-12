@@ -318,8 +318,13 @@ final class PathSelector implements PathMatcher {
             final String exclude = it.next();
             final int s = exclude.indexOf(':');
             if (s <= MAVEN_SYNTAX_THRESHOLD || exclude.startsWith(DEFAULT_SYNTAX)) {
-                if (cannotMatch(exclude, prefixes, false) || cannotMatch(exclude, suffixes, true)) {
-                    it.remove();
+                // Compare the exclude in the same form as the includes: glob syntax without its prefix.
+                final String[] normalized = normalizePatterns(List.of(exclude), true);
+                if (normalized.length != 0) {
+                    final String pattern = normalized[0].substring(DEFAULT_SYNTAX.length());
+                    if (cannotMatch(pattern, prefixes, false) || cannotMatch(pattern, suffixes, true)) {
+                        it.remove();
+                    }
                 }
             }
         }
